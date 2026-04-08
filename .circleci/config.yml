@@ -1,0 +1,88 @@
+version: 2.1
+
+jobs:
+  test-and-build:
+    docker:
+      - image: cimg/node:20.11
+    working_directory: ~/project
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-node-deps-{{ checksum "package-lock.json" }}
+            - v1-node-deps-
+
+      - run:
+          name: Install dependencies
+          command: npm ci
+
+      - save_cache:
+          key: v1-node-deps-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+
+      - run:
+          name: Run tests
+          command: npm test
+
+      - run:
+          name: Build application
+          command: npm run build
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  docker-build-and-push:
+    docker:
+      - image: cimg/base:stable
+    working_directory: ~/project
+
+    steps:
+      - attach_workspace:
+          at: ~/project
+
+      - setup_remote_docker
+
+      - run:
+          name: Compute image tag
+          command: |
+            echo 'export IMAGE_TAG=$(echo "$CIRCLE_SHA1" | cut -c1-7)' >> "$BASH_ENV"
+            source "$BASH_ENV"
+            echo "IMAGE_TAG=$IMAGE_TAG"
+
+      - run:
+          name: Docker login
+          command: |
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - run:
+          name: Build Docker image
+          command: |
+            source "$BASH_ENV"
+            docker build -t docker.io/$DOCKERHUB_USERNAME/todo-ui:$IMAGE_TAG .
+            docker tag docker.io/$DOCKERHUB_USERNAME/todo-ui:$IMAGE_TAG docker.io/$DOCKERHUB_USERNAME/todo-ui:dev
+
+      - run:
+          name: Push Docker image
+          command: |
+            source "$BASH_ENV"
+            docker push docker.io/$DOCKERHUB_USERNAME/todo-ui:$IMAGE_TAG
+            docker push docker.io/$DOCKERHUB_USERNAME/todo-ui:dev
+
+workflows:
+  todo-ui-ci:
+    jobs:
+      - test-and-build
+      - docker-build-and-push:
+          context:
+            - dockerhub
+          requires:
+            - test-and-build
+          filters:
+            branches:
+              only:
+                - main
