@@ -1,6 +1,6 @@
 # todo-ui
 
-Simple Todo UI
+Simple Todo UI project
 
 This project is part of a **GitOps demo setup** using:
 - Kubernetes (k3d)
