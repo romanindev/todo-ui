@@ -120,11 +120,11 @@ jobs:
               exit 0
             fi
 
-            git config user.name "$GITHUB_USER"
-            git config user.email "$GITHUB_EMAIL"
+            git config user.name "circleci-bot"
+            git config user.email "ci@circleci.local"
 
             git add overlays/dev/components/todo-ui-image/kustomization.yaml
-            git commit -m "chore: update todo-ui image tag to $IMAGE_TAG"
+            git commit -m "chore(ci): update todo-ui image tag to $IMAGE_TAG"
             git push origin main
 
 workflows:
